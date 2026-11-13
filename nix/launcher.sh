@@ -11,13 +11,17 @@ if [ $# -eq 0 ]; then
     set -- --help
 fi
 case "$1" in
+    -V|--version|version)
+        printf 'NX2navi %s (Nix source build)\n' "$(cat "$KIT/VERSION")"
+        exit 0 ;;
     -h|--help)
         printf 'NX2navi %s (Nix source build)\n\n' "$(cat "$KIT/VERSION")"
         printf '%s\n' 'nx2navi                                  Open the launcher' \
             'nx2navi DUMP.nup [GAME_FOLDER]             Build the game' \
             'nx2navi --run GAME_FOLDER [options]        Run an existing build' \
             'nx2navi --make-game [options]              Use the build tools directly' \
-            'nx2navi --check DUMP.nup                   Check the dump version'
+            'nx2navi --check DUMP.nup                   Check the dump version' \
+            'nx2navi --version                         Print the launcher version'
         exit 0 ;;
     --run)
         shift
@@ -28,7 +32,9 @@ case "$1" in
         cd "$game"
         exec ./ocarina "$@" ;;
     --make-game) shift; exec "$PY" "$KIT/tools/make_game.py" "$@" ;;
-    --check) exec "$PY" "$KIT/tools/make_game.py" --nup "$2" --check ;;
+    --check)
+        [ $# -eq 2 ] || { echo 'Usage: nx2navi --check DUMP.nup' >&2; exit 2; }
+        exec "$PY" "$KIT/tools/make_game.py" --nup "$2" --check ;;
 esac
 events=()
 if [ "$1" = --events ]; then events=(--events); shift; fi
@@ -38,6 +44,10 @@ if [ ${#events[@]} -gt 0 ]; then
         '@@{"ev":"step","step":"dlss","state":"skip"}'
 fi
 dump="$1"
+case "$dump" in
+    -*) printf 'Unknown option: %s\nUse nx2navi --help for usage.\n' "$dump" >&2; exit 2 ;;
+esac
+[ -f "$dump" ] || { printf 'Game dump not found: %s\n' "$dump" >&2; exit 2; }
 game="${2:-$HOME/Games/Ocarina}"
 mem_gb=$(awk '/MemTotal/ {print int($2 / 1048576)}' /proc/meminfo)
 jobs=$((mem_gb / 4)); [ "$jobs" -ge 2 ] || jobs=2
